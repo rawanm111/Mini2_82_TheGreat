@@ -1,0 +1,44 @@
+# remove or omit the top-level 'version:' field with modern Compose
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ride_sharing
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:6.0
+    environment:
+      # this creates the 'ride_sharing' DB, but root user ends up in 'admin'
+      MONGO_INITDB_DATABASE: ride_sharing
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: 1234
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - mongo
+    environment:
+      # override Spring props so it talks to the containers, not localhost
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ride_sharing
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 1234
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:1234@mongo:27017/ride_sharing?authSource=ride_sharing
+
+volumes:
+  pgdata:
+  mongodata:
